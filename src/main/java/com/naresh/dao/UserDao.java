@@ -1,9 +1,7 @@
 package com.naresh.dao;
 
-import com.naresh.db.DbConnection;
-import com.naresh.models.Role;
-import com.naresh.models.User;
-import com.naresh.utils.QueryUtil;
+import com.naresh.db.Database;
+import com.naresh.model.User;
 
 import java.sql.Connection;
 import java.sql.PreparedStatement;
@@ -11,59 +9,38 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 
 public class UserDao {
-
-    private final Connection connection;
+    private final Connection con;
 
     public UserDao() {
-        this.connection = DbConnection.getConnection();
-    }
 
-    public User validateUser(String email, String password) {
+        con = Database.getConnection();
+    }
+    private String selectSQL = "SELECT id, username, password FROM auth WHERE username=? and password=?";
+    private String RegisterSQL="INSERT INTO auth(username,password)VALUES(?,?);";
+    public User loginUser(String username, String password) {
         User user = null;
         try {
-            PreparedStatement preparedStatement = connection.prepareStatement(QueryUtil.SELECT_USER);
-            preparedStatement.setString(1, email);
-            preparedStatement.setString(2, password);
-            ResultSet resultSet = preparedStatement.executeQuery();
-            while (resultSet.next()) {
-
-                Role role = new Role(Integer.parseInt(resultSet.getString("roleId")),resultSet.getString("roleName"));
-                user = new User(Integer.parseInt(resultSet.getString("id")), resultSet.getString("email"), resultSet.getString("userPassword"),
-                        role);
-
+            PreparedStatement ps = con.prepareStatement(selectSQL);
+            ps.setString(1, username);
+            ps.setString(2, password);
+            ResultSet rs = ps.executeQuery();
+            if (rs.next()) {
+                user = new User();
+                user.setId(Integer.parseInt(rs.getString("id")));
+                user.setUsername(rs.getString("username"));
+                user.setPassword(rs.getString("password"));
             }
         } catch (SQLException e) {
-            throw new RuntimeException(e);
+            e.printStackTrace();
         }
         return user;
     }
-
-    public boolean getUser(String email) {
-        boolean isExistingUser=false;
+    public void register(String username, String password) {
         try {
-            PreparedStatement preparedStatement = connection.prepareStatement(QueryUtil.SELECT_ALL_USERS);
-            ResultSet resultSet = preparedStatement.executeQuery();
-            while(resultSet.next())
-            {
-                if(email.trim().equals(resultSet.getString("email")))
-                {
-                    isExistingUser=true;break;
-                }
-            }
-        } catch (SQLException e) {
-            throw new RuntimeException(e);
-        }
-        return isExistingUser;
-
-    }
-
-    public void registerUser(String email, String password) {
-        try {
-            PreparedStatement preparedStatement = connection.prepareStatement(QueryUtil.REGISTER_USER);
-            preparedStatement.setString(1,email);
-            preparedStatement.setString(2,password);
-            preparedStatement.setInt(3,2);
-            preparedStatement.executeUpdate();
+            PreparedStatement rt= con.prepareStatement(RegisterSQL);
+            rt.setString(1, username);
+            rt.setString(2, password);
+            rt.executeUpdate();
         } catch (SQLException e) {
             throw new RuntimeException(e);
         }
